@@ -1,0 +1,95 @@
+<job id="Action-CleanupBeforeSysprep">
+<script language="VBScript" src="..\..\Scripts\ZTIUtility.vbs"/>
+<script language="VBScript"> 
+
+'//----------------------------------------------------------------------------
+'//
+'// Purpose: 	Install hotfixes during reference image creation with MDT
+'// Usage: 		cscript Action-InstallHotfixes.wsf
+'// Version: 	1.0 (2016-02-08)
+'// Author: 	Nickolaj Andersen
+'//
+'//----------------------------------------------------------------------------
+
+'//----------------------------------------------------------------------------
+'// Global constant and variable declarations
+'//---------------------------------------------------------------------------- 
+
+Option Explicit 
+
+Dim iRetVal 
+
+'//----------------------------------------------------------------------------
+'// End declarations
+'//---------------------------------------------------------------------------- 
+
+'//----------------------------------------------------------------------------
+'// Main routine
+'//---------------------------------------------------------------------------- 
+
+'On Error Resume Next
+iRetVal = ZTIProcess
+ProcessResults iRetVal
+On Error Goto 0 
+
+'//---------------------------------------------------------------------------
+'//
+'// Function: ZTIProcess()
+'//
+'// Input: None
+'// 
+'// Return: Success - 0
+'// Failure - non-zero
+'//
+'// Purpose: Perform main ZTI processing
+'// 
+'//---------------------------------------------------------------------------
+Function ZTIProcess() 
+
+	Dim strActionName
+	Dim strOSCurrentVersion
+	Dim strOSCurrentVersionShort
+	Dim strFolder
+	Dim strScriptPath
+	Dim objFSO
+	Dim objFile
+	Dim objHotfixFile
+	Dim strSourceFolder
+	Dim objSourceFolder
+	Dim strCommandLine
+	
+	strActionName = "Action-InstallHotfixes"
+	strOSCurrentVersion = oEnvironment.item("OSCurrentVersion")
+	strOSCurrentVersionShort = Left(oEnvironment.item("OSCurrentVersion"),3)
+	
+	oLogging.CreateEntry strActionName & ": Starting", LogTypeInfo
+	oLogging.CreateEntry strActionName & ": Running on Windows version: " & strOSCurrentVersion, LogTypeInfo
+
+		' Get current working directory
+		strScriptPath = Wscript.ScriptFullName
+		Set objFSO = CreateObject("Scripting.FileSystemObject")
+		Set objFile = objFSO.GetFile(strScriptPath)
+		strFolder = objFSO.GetParentFolderName(objFile)
+
+		' Determine Sources folder
+		strSourceFolder = strFolder & "\Sources"
+
+		' Enumerate all hotfixes
+		Set objSourceFolder = objFSO.GetFolder(strSourceFolder)
+		For Each objHotfixFile in objSourceFolder.Files
+			
+			strCommandLine = "wusa.exe " & chr(34) & objHotfixFile & chr(34) & " /quiet /norestart"
+			oLogging.CreateEntry strActionName & ": Prepared command line: " & strCommandLine, LogTypeInfo
+			
+			oLogging.CreateEntry strActionName & ": Installing hotfix file: " & objHotfixFile, LogTypeInfo
+			iRetVal = oUtility.RunWithHeartbeat(strCommandLine)
+			Wscript.Echo strCommandLine
+
+		Next
+
+	oLogging.CreateEntry oUtility.ScriptName & ": Return code from command = " & iRetVal, LogTypeInfo
+	oLogging.CreateEntry oUtility.ScriptName & ": Finished", LogTypeInfo
+
+	End Function 
+</script>
+</job>
